@@ -1,0 +1,34 @@
+{
+  "ohx": {
+    "id": "ohx",
+    "title": "OpenHAB X Installation",
+    "author": "David Gräff",
+    "logo_url": "/img/openhab-installation.svg",
+    "redirect_uri": [ ],
+    "scopes": ["device", "offline_access"]
+  },
+  "addoncli": {
+    "id": "addoncli",
+    "title": "Addon Registry Tool",
+    "author": "David Gräff",
+    "logo_url": "/img/openhab-cli.svg",
+    "redirect_uri": [
+      "https://openhabx.com/oauth_device_confirm"
+    ],
+    "requires_state": true,
+    "scopes": ["addons", "profile", "offline_access"]
+  },
+  "amazon_echo": {
+    "id": "amazon_echo",
+    "secret": "MCG3U2FUKINEJ",
+    "title": "Alexa Smarthome Skill",
+    "author": "Amazon",
+    "logo_url": "/img/alexa_logo.png",
+    "redirect_uri": [
+      "https://layla.amazon.com/api/skill/link/MCG3U2FUKINEJ",
+      "https://pitangui.amazon.com/api/skill/link/MCG3U2FUKINEJ",
+      "https://alexa.amazon.co.jp/api/skill/link/MCG3U2FUKINEJ"
+    ],
+    "scopes": ["device", "offline_access"]
+  }
+}

@@ -1,0 +1,12 @@
+.git
+.gitignore
+LICENSE
+README.md
+*.sh
+/target/
+**/*.rs.bk
+src/
+*.rs
+appenv
+*.json
+Dockerfile.local

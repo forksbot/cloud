@@ -1,0 +1,22 @@
+{
+  "profile": {
+    "description": "Allow access to your e-mail address",
+    "icon": "https://www.openhabx.com/icons/oauth/profile.png"
+  },
+  "account": {
+    "description": "Allow access to your account settings. Required to request or change backup schedules.",
+    "icon": "https://www.openhabx.com/icons/oauth/account.png"
+  },
+  "device": {
+    "description": "Allow real-time communication access to your openHABx devices",
+    "icon": "https://www.openhabx.com/icons/oauth/device.png"
+  },
+  "addons": {
+    "description": "Addon Registry access",
+    "icon": "https://www.openhabx.com/icons/oauth/device.png"
+  },
+  "admin": {
+    "description": "Full access",
+    "icon": "https://www.openhabx.com/icons/oauth/account.png"
+  }
+}
