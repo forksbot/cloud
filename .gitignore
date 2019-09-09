@@ -2,3 +2,5 @@
 **/*.rs.bk
 
 secrets/
+ohx-app
+upx

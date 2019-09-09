@@ -139,12 +139,13 @@ pub fn return_token_response(
         return if scopes.contains(SCOPE_OFFLINE_ACCESS) {
             // Create access token (same as refresh token but without the SCOPE_OFFLINE_ACCESS scope
             // and with only 1h expiry time
-            let access_token = jwt::create_jwt_encoded(
+            let access_token = jwt::create_jwt_encoded_for_user(
                 &credentials,
                 Some(scopes.iter().filter(|f| f.as_str() != SCOPE_OFFLINE_ACCESS)),
                 Duration::hours(1),
                 Some(client_id.clone()),
-                Some(uid.clone()),
+                uid.clone(),
+                token_result.subject.clone(),
             )?;
 
             // Write refresh token to database. Can be revoked by the user (== deleted) and is used
@@ -157,7 +158,6 @@ pub fn return_token_response(
                     uid,
                     client_id,
                     token: jwt_token.clone(),
-                    client_name: "".to_string(),
                     scopes: token_result.get_scopes().into_iter().collect(),
                     issued_at: chrono::Utc::now().timestamp(),
                 },
@@ -258,9 +258,9 @@ pub fn token(
             let code = hash_of_token(token_request.refresh_token.as_ref().unwrap().as_bytes());
             let db_entry: db::AccessTokenInDB = firestore_db_and_auth::documents::read(session, "access_tokens", code).map_err(|_e| MyResponder::bad_request("Access Token not valid. It may have been revoked!"))?;
             // Filter out offline scope and create access token
-            let access_token = jwt::create_jwt_encoded(&credentials, Some(db_entry.scopes.iter().filter(|f| f.as_str() != SCOPE_OFFLINE_ACCESS)),
-                                                       Duration::hours(1),
-                                                       Some(db_entry.client_id.clone()), Some(db_entry.uid.clone()))?;
+            let access_token = jwt::create_jwt_encoded_for_user(&credentials, Some(db_entry.scopes.iter().filter(|f| f.as_str() != SCOPE_OFFLINE_ACCESS)),
+                                                                Duration::hours(1),
+                                                                Some(db_entry.client_id.clone()), db_entry.uid.clone(), credentials.client_email.clone())?;
 
             con_json(&OAuthTokenResponse::new(access_token, Some(db_entry.token), db_entry.scopes.clone().into_iter().collect()))
         }
@@ -310,7 +310,7 @@ pub fn authorize(
         Some(scopes),
         duration,
         Some(request.client_id.clone()),
-        None,
+        None, &credentials.client_email,
     )?;
 
     let unsigned = encrypt_unsigned_jwt_token(jwt)?;

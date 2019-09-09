@@ -139,6 +139,7 @@ fn encrypt_decrypt_test() {
         chrono::Duration::hours(1),
         Some("client_id".to_owned()),
         Some("user_id".to_owned()),
+        &credentials.client_email
     ).unwrap();
 
     let encoded = encrypt_unsigned_jwt_token(jwt).unwrap();

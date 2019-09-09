@@ -193,7 +193,6 @@ dependencies = [
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "miniz_oxide 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "redis 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "reqwest 0.9.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "ring 0.16.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocket 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocket_contrib 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -209,7 +208,7 @@ dependencies = [
 [[package]]
 name = "cloud-vault"
 version = "0.0.0"
-source = "git+https://github.com/openhab-nodes/cloud-ci-cd#268a7125b04559c6227b88072ba026ceda243769"
+source = "git+https://github.com/openhab-nodes/cloud-ci-cd#b44ca77f8d3f903d793a80fdf646ffc232b05981"
 dependencies = [
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "biscuit 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -470,7 +469,7 @@ dependencies = [
 [[package]]
 name = "firestore-db-and-auth"
 version = "0.4.0"
-source = "git+https://github.com/davidgraeff/firestore-db-and-auth-rs#00f8ab407d97378ef8542e53d83d52880cdaa0f8"
+source = "git+https://github.com/davidgraeff/firestore-db-and-auth-rs#b9a55a0b4a4566f556821a2f490399a9cdde6baf"
 dependencies = [
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "biscuit 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
