@@ -1,58 +1,61 @@
 # Cloud OAuth
 
-> Website, Cloud-Connector-Addon and external service authentication.
+> OAuth authentication for the Website, Cloud-Connector, Alexa Skill
 
-This is unrelated to OHX installation authentication.
+Note: OHX installations use their own, local authentication service, residing in https://github.com/openhab-nodes/core.
 
 This service implements the OAuth Code Grant and OAuth Device flow in combination
-with the website, which renders the login and token generation endpoint in combination with
-[Google Firestore Auth](https://firebase.google.com/docs/auth).
+with the website, which renders the login page via [Google Firestore Auth](https://firebase.google.com/docs/auth).
 
-Firestore tokens are exchanged into OHX OAuth tokens and can be revoked by the user.
+### Firestore Auth
 
-Find all allowed services in `oauth_clients.json`:
-The addon registry CLI tool, Amazon Alexa and the Cloud Connector Addon are important clients.
+Firestore Auth provides automatic profile consolidation, federated logins via Github, Facebook and other OIC providers,
+email address confirmation and a lost password function.
+
+Firestore Auth tokens are exchanged into OHX OAuth tokens and can be revoked by the user on the website.
+
+### OAuth clients
+
+Find all allowed services in `oauth_clients.json`. This is currently
+
+* the Addon registry CLI tool,
+* Amazon Alexa and
+* the Cloud Connector Addon.
 
 Looking at Amazon Alexa as an example, the procedure works like this:
 
-* The Amazon Alexa App opens https://openhabx.com/auth?client_id={}&client_secret={}&state={}&redirect_url={}
+* The Amazon Alexa App opens https://oauth.openhabx.com/authorize?client_id={}&client_secret={}&state={}&redirect_uri={}
+* This service will redirect to the website https://openhabx.com/auth, passing all arguments and adding two more
+  (`unsigned` and `code`). Those are transparent blobs for the website.
 * The user logs in via his openhabx.com credentials and confirms access.
-* The https://oauth.openhabx.com/generate_token endpoint of this service is called to
-  create a real access token and refresh token, which is persisted in the firestore database.
-  A `code` is returned.
+* The website calls `/grant_scopes` with the granted scopes, `unsigned` and `code` attached and gets an OAuth `code` in response.
 * The webpage redirects to the given `redirect_url`, appending the `code`.
-* Amazon servers will now swap the `code` for the generated access token / refresh token tuple
+* Amazon servers will now exchange the `code` for an access token / refresh token tuple
   via the https://oauth.openhabx.com/token endpoint of this service.
 * The user can enumerate and revoke refresh tokens on https://openhabx.com/access_tokens.
 
-For the CLI it works a bit different:
+For the CLI it works a bit different, because the OAuth device flow is used.
+Instead of a redirect, the `/token` endpoint is polled while the user is logging in and confirming access. 
 
-* The user starts the CLI to upload an Addon to the registry.
-  He/She is asked to log in and https://openhabx.com/auth?client_id={}&client_secret={}&state={} is opened.
-  A redirect url is not given, because we are following the indirect OAuth device flow now.
-* The CLI will poll https://oauth.openhabx.com/check_for_auth?state={}.
-* When the user successfully logged in, and the https://oauth.openhabx.com/generate_token endpoint has been called,
-  the `check_for_auth` endpoint will return a real access token and refresh token.
-  The tokens are persisted in the users addon directory and used next time.
-
-OAuth alike endpoints:
+### OAuth endpoints
 
 * `/authorize?<response_type>&<client_id>&<redirect_uri>&<scope>&<state>`
   response_type can be "code" for the OAuth code grant flow or "device"
   Works in tandem with the websites /auth page.
   - For the device flow it will return a json (device_code,user_code,verification_uri,...) with a verification_uri like below.
-  - The code grant flow will not show a page itself, but will redirect to URL.
+  - The code grant flow will not show a page itself, but will redirect to the url below.
   
   URL: `https://openhabx.com/auth?<response_type>&<client_id>&<redirect_uri>&<scope>&<state>&<unsigned>`.
 * `/token`: OAuth Code to token endpoint. Used by the code grant and device flow.
   Expects POST form data with `grant_type`, `client_id`, `device_code` or `code`.
-* `/grant_scopes`: *². POST json request with `unsigned`, `scopes`, `code`
-  Returns a 60 min valid "code" that can be used for the token endpoint to retrieve access tokens.
+* `/grant_scopes`: *². POST json request with `unsigned`, `scopes` (array), `code`
+  Returns a 5 min valid "code" that can be used for the token endpoint to retrieve access tokens.
   Called by the websites `/auth` page that will soon after redirect to a given "redirect_uri" with that code.
 
-"unsigned" is a service generated JWT, but not yet signed. So it cannot be used as an access token yet. 
+"unsigned" is a generated JWT, very much like the refresh and access tokens of this service, but not yet signed.
+So it cannot be used as an access token yet. 
 
-Management endpoints:
+### Management endpoints
 
 * `/revoke`: *¹. POST; Expects a json {client_id,client_secret,token}
 * `/check_users`: *¹. Check for users that are marked as to-be-removed and remove them. To be called periodically.
