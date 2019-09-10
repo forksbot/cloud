@@ -46,7 +46,7 @@ OAuth alike endpoints:
   URL: `https://openhabx.com/auth?<response_type>&<client_id>&<redirect_uri>&<scope>&<state>&<unsigned>`.
 * `/token`: OAuth Code to token endpoint. Used by the code grant and device flow.
   Expects POST form data with `grant_type`, `client_id`, `device_code` or `code`.
-* `/grant_scopes?<unsigned>&<scopes>&<code>`: *². POST form request;
+* `/grant_scopes`: *². POST json request with `unsigned`, `scopes`, `code`
   Returns a 60 min valid "code" that can be used for the token endpoint to retrieve access tokens.
   Called by the websites `/auth` page that will soon after redirect to a given "redirect_uri" with that code.
 

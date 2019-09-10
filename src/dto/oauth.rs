@@ -11,6 +11,8 @@ pub const SCOPE_OFFLINE_ACCESS: &str = "offline_access";
 pub struct GenerateCodeDTO {
     pub client_id: String,
     pub client_secret: Option<String>,
+    pub client_name: Option<String>,
+    pub redirect_uri: Option<String>,
     pub response_type: String, // "code" or "device"
     pub scope: Option<String>, // offline_access -> return a refresh_token
     pub state: Option<String>,
@@ -24,6 +26,8 @@ use rocket::UriDisplayQuery;
 pub struct AuthPageRedirectUri {
     pub client_id: String,
     pub client_secret: Option<String>,
+    pub client_name: Option<String>,
+    pub redirect_uri: Option<String>,
     pub response_type: String, // "code" or "device"
     pub scope: Option<String>, // offline_access -> return a refresh_token
     pub state: Option<String>,

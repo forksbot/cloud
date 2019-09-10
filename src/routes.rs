@@ -318,6 +318,8 @@ pub fn authorize(
     let message = AuthPageRedirectUri {
         client_id: request.client_id.clone(),
         client_secret: request.client_secret.clone(),
+        client_name: request.client_name.clone(),
+        redirect_uri: request.redirect_uri.clone(),
         response_type: request.response_type.clone(),
         scope: request.scope.as_ref().and_then(|f| Some(f.trim().to_owned())),
         state: request.state.clone(),

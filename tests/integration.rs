@@ -144,7 +144,9 @@ fn auth_and_token_code_grant_flow(client: &rocket::local::Client, _g_access_toke
 
     let mut message = oauth::GenerateCodeDTO {
         client_id: "demo_client".to_string(),
-        client_secret: None,
+        client_secret: Some("demo_secret".to_string()),
+        client_name: Some("demo_name".to_string()),
+        redirect_uri: Some("demo_redirect".to_string()),
         response_type: "code".to_string(),
         scope: None,
         state: Some("test".to_string()),
@@ -189,6 +191,9 @@ fn auth_and_token_code_grant_flow(client: &rocket::local::Client, _g_access_toke
 
     let redirect: oauth::AuthPageRedirectUri = serde_urlencoded::from_str(&location_redirect[location_redirect.find("?").unwrap() + 1..])?;
     assert_eq!(redirect.client_id, message.client_id.clone());
+    assert_eq!(redirect.client_secret, message.client_secret.clone());
+    assert_eq!(redirect.client_name, message.client_name.clone());
+    assert_eq!(redirect.redirect_uri, message.redirect_uri.clone());
     assert_eq!(redirect.response_type, "code");
     assert_eq!(redirect.state, message.state);
 
@@ -251,6 +256,8 @@ fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &
     let message = oauth::GenerateCodeDTO {
         client_id: "addoncli".to_string(),
         client_secret: None,
+        client_name: None,
+        redirect_uri: None,
         response_type: "device".to_string(),
         scope: Some("addons offline_access".into()),
         state: Some("test".to_string()),
@@ -318,7 +325,7 @@ fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &
     assert_eq!(response.status(), Status::Ok);
 
     let token_response: oauth::OAuthTokenResponse = serde_json::from_str(&code)?;
-    assert_eq!(token_response.scope, "offline_access addons");
+    assert_eq!(token_response.scope, "addons offline_access");
     assert_eq!(token_response.token_type, "bearer");
     assert!(!token_response.access_token.is_empty());
     assert!(!token_response.refresh_token.unwrap().is_empty());
