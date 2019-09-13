@@ -15,11 +15,16 @@ pub enum MyResponder {
     RateLimited(String),
     #[response(status = 500)]
     InternalError(String),
+    #[response(status = 500, content_type = "json")]
+    InternalErrorJson(String),
 }
 
 impl MyResponder {
     pub fn bad_request(message: &str) -> MyResponder {
         MyResponder::BadRequest(json!({"error":message.to_owned()}).to_string())
+    }
+    pub fn internal_error(message: &str) -> MyResponder {
+        MyResponder::InternalErrorJson(json!({"error":message.to_owned()}).to_string())
     }
 }
 

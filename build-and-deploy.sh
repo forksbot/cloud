@@ -23,7 +23,7 @@ trap finish EXIT
 
 if [ ! -f ./target/upx ]; then
   mkdir -p target && wget https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz
-  tar xf upx-3.95-amd64_linux.tar.xz && cp ./upx-3.95-amd64_linux/upx upx && chmod +x upx && rm -rf upx-3.95-amd64_linux*
+  tar xf upx-3.95-amd64_linux.tar.xz && cp ./upx-3.95-amd64_linux/upx target/upx && chmod +x upx && rm -rf upx-3.95-amd64_linux*
 fi
 
 if [ ! -f ./secrets/access_scopes.json ]; then

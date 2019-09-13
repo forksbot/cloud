@@ -18,7 +18,7 @@ stackdriver_logger = "^0.5"
 log = "^0.4"
 chrono = "0.4.9"
 
-firestore-db-and-auth = { version="^0.4", default-features = false, features=["rustls-tls","rocket_support"] }
+firestore-db-and-auth = { version="^0.5", default-features = false, features=["rustls-tls","rocket_support"] }
 cloud-vault= { git = "https://github.com/openhab-nodes/cloud-ci-cd", branch="master", features=[] }
 
 biscuit = "^0.3"

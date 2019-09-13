@@ -74,7 +74,7 @@ pub fn check_for_users(
 
     let result = documents::query(session, "users", timestamp.into(), dto::FieldOperator::LESS_THAN_OR_EQUAL, "queued_remove")?;
     for metadata in result {
-        let name = documents::abs_to_rel(metadata.name.as_ref().unwrap());
+        let name = documents::abs_to_rel(&metadata.name);
         let user_id = &name[name.rfind("/").unwrap() + 1..];
         info!("FOUND DOCUMENT {} - {}", name, user_id);
         let user_session = firestore_db_and_auth::UserSession::by_user_id(&session.credentials, user_id, false);
@@ -100,82 +100,6 @@ pub fn check_for_users(
 #[get("/check_for_users", rank = 2)]
 pub fn check_for_users_unauthorized() -> MyResponder {
     MyResponder::AccessScopeInsufficient("Requires authorization".to_owned())
-}
-
-/// Deserialize type T and return a "content::Json" rocket response
-fn con_json<T>(t: &T) -> Result<content::Json<String>, MyResponder>
-    where
-        T: serde::Serialize,
-{
-    Ok(content::Json(serde_json::to_string(t)?))
-}
-
-pub fn return_token_response(
-    redis: &redis::Client,
-    session: &SASession,
-    credentials: &Credentials,
-    client_id: String,
-    code: Option<String>,
-) -> Result<content::Json<String>, MyResponder> {
-    if code.is_none() {
-        return Err(MyResponder::bad_request("Code invalid"));
-    }
-    let code = code.unwrap();
-    let mut c = redis.get_connection()?;
-
-    let jwt_token: Option<String> = c.get(&code)?;
-    if jwt_token.is_none() {
-        return Err(MyResponder::bad_request("Code invalid"));
-    }
-    let jwt_token = jwt_token.unwrap();
-
-    if let Some(token_result) = jwt::verify_access_token(&credentials, &jwt_token)? {
-        if token_result.claims.uid.is_none() {
-            return Err(MyResponder::bad_request("Access token has no user_id!"));
-        }
-        let uid = token_result.claims.uid.as_ref().unwrap().clone();
-
-        let scopes = token_result.get_scopes();
-        return if scopes.contains(SCOPE_OFFLINE_ACCESS) {
-            // Create access token (same as refresh token but without the SCOPE_OFFLINE_ACCESS scope
-            // and with only 1h expiry time
-            let access_token = jwt::create_jwt_encoded_for_user(
-                &credentials,
-                Some(scopes.iter().filter(|f| f.as_str() != SCOPE_OFFLINE_ACCESS)),
-                Duration::hours(1),
-                Some(client_id.clone()),
-                uid.clone(),
-                token_result.subject.clone(),
-            )?;
-
-            // Write refresh token to database. Can be revoked by the user (== deleted) and is used
-            // by the token endpoint to create new access_tokens.
-            documents::write(
-                session,
-                "access_tokens",
-                Some(&code),
-                &db::AccessTokenInDB {
-                    uid,
-                    client_id,
-                    token: jwt_token.clone(),
-                    scopes: token_result.get_scopes().into_iter().collect(),
-                    issued_at: chrono::Utc::now().timestamp(),
-                },
-                documents::WriteOptions::default(),
-            )?;
-
-            c.del(&code)?;
-            con_json(&OAuthTokenResponse::new(
-                access_token,
-                Some(jwt_token),
-                scopes,
-            ))
-        } else {
-            c.del(&code)?;
-            con_json(&OAuthTokenResponse::new(jwt_token, None, scopes))
-        };
-    }
-    return Err(MyResponder::bad_request("Unexpected"));
 }
 
 #[post("/grant_scopes", format = "application/json", data = "<request>")]
@@ -217,9 +141,9 @@ pub fn grant_scopes(
     // Sign
     let jwt = jwt.encode(&secret.deref())?.encoded()?.encode();
 
-    let mut c = redis.get_connection()?;
-    c.set_nx(&request.code, &jwt)?;
-    c.expire(&request.code, 360)?;
+    let mut redis_connection = redis.get_connection()?;
+    redis_connection.set_nx(&request.code, &jwt)?;
+    redis_connection.expire(&request.code, 360)?;
     Ok(request.code.clone())
 }
 
@@ -244,28 +168,101 @@ pub fn token(
     let session_mutex = firebase.lock()?;
     let session: &SASession = session_mutex.deref();
 
-    match &token_request.grant_type[..] {
-        "urn:ietf:params:oauth:grant-type:device_code" => {
-            return_token_response(&redis, &session, &credentials, token_request.0.client_id, token_request.0.device_code)
+    if &token_request.grant_type == "refresh_token" {
+        if token_request.refresh_token.is_none() {
+            return Err(MyResponder::bad_request("You must provide a refresh_token"));
         }
-        "authorization_code" => {
-            return_token_response(&redis, &session, &credentials, token_request.0.client_id, token_request.0.code)
-        }
-        "refresh_token" => {
-            if token_request.refresh_token.is_none() {
-                return Err(MyResponder::bad_request("You must provide a refresh_token"));
-            }
-            let code = hash_of_token(token_request.refresh_token.as_ref().unwrap().as_bytes());
-            let db_entry: db::AccessTokenInDB = firestore_db_and_auth::documents::read(session, "access_tokens", code).map_err(|_e| MyResponder::bad_request("Access Token not valid. It may have been revoked!"))?;
-            // Filter out offline scope and create access token
-            let access_token = jwt::create_jwt_encoded_for_user(&credentials, Some(db_entry.scopes.iter().filter(|f| f.as_str() != SCOPE_OFFLINE_ACCESS)),
-                                                                Duration::hours(1),
-                                                                Some(db_entry.client_id.clone()), db_entry.uid.clone(), credentials.client_email.clone())?;
+        let code = hash_of_token(token_request.refresh_token.as_ref().unwrap().as_bytes());
+        let db_entry: db::AccessTokenInDB = firestore_db_and_auth::documents::read(session, "access_tokens", code).map_err(|_e| MyResponder::bad_request("Access Token not valid. It may have been revoked!"))?;
+        // Filter out offline scope and create access token
+        let access_token = jwt::create_jwt_encoded_for_user(&credentials, Some(db_entry.scopes.iter().filter(|f| f.as_str() != SCOPE_OFFLINE_ACCESS)),
+                                                            Duration::hours(1),
+                                                            Some(db_entry.client_id.clone()), db_entry.uid.clone(), credentials.client_email.clone())?;
 
-            con_json(&OAuthTokenResponse::new(access_token, Some(db_entry.token), db_entry.scopes.clone().into_iter().collect()))
-        }
-        _ => Err(MyResponder::bad_request("grant_type must be authorization_code, refresh_token or urn:ietf:params:oauth:grant-type:device_code"))
+        let token_response = OAuthTokenResponse::new(access_token, Some(db_entry.token), db_entry.scopes.clone().into_iter().collect());
+        return Ok(content::Json(serde_json::to_string(&token_response)?));
     }
+
+    if token_request.code.is_none() {
+        return Err(MyResponder::bad_request("You must provide a refresh_token"));
+    }
+    let code = token_request.code.as_ref().unwrap();
+
+    let is_device_code = match &token_request.grant_type[..] {
+        "urn:ietf:params:oauth:grant-type:device_code" | "device_code" => true,
+        "authorization_code" => false,
+        _ => return Err(MyResponder::bad_request("grant_type must be authorization_code, refresh_token or urn:ietf:params:oauth:grant-type:device_code"))
+    };
+
+    let mut redis_connection = redis.get_connection()?;
+
+    //// Get stored access token from Redis. Might be "access_denied" or not set ////
+    let jwt_token: Option<String> = redis_connection.get(code)?;
+    if jwt_token.is_none() {
+        if is_device_code {
+            return Err(MyResponder::bad_request("authorization_pending"));
+        } else {
+            return Err(MyResponder::bad_request("expired_token"));
+        }
+    }
+    let jwt_token = jwt_token.unwrap();
+    if &jwt_token == "access_denied" {
+        return Err(MyResponder::bad_request("access_denied"));
+    }
+
+    //// verify token
+    let token_result = jwt::verify_access_token(&credentials, &jwt_token)?;
+    if token_result.is_none() {
+        redis_connection.del(code)?;
+        return Err(MyResponder::bad_request("expired_token"));
+    }
+    let token_result = token_result.unwrap();
+
+    if token_result.claims.uid.is_none() {
+        return Err(MyResponder::internal_error("Access token has no user_id!"));
+    }
+    let uid = token_result.claims.uid.as_ref().unwrap().clone();
+
+    let scopes = token_result.get_scopes();
+    let token_response = if scopes.contains(SCOPE_OFFLINE_ACCESS) {
+        // Create access token (same as refresh token but without the SCOPE_OFFLINE_ACCESS scope
+        // and with only 1h expiry time
+        let access_token = jwt::create_jwt_encoded_for_user(
+            &credentials,
+            Some(scopes.iter().filter(|f| f.as_str() != SCOPE_OFFLINE_ACCESS)),
+            Duration::hours(1),
+            Some(token_request.client_id.clone()),
+            uid.clone(),
+            token_result.subject.clone(),
+        )?;
+
+        // Write refresh token to database. Can be revoked by the user (== deleted) and is used
+        // by the token endpoint to create new access_tokens.
+        documents::write(
+            session,
+            "access_tokens",
+            Some(&code),
+            &db::AccessTokenInDB {
+                uid: uid.clone(),
+                client_id: token_request.client_id.clone(),
+                token: jwt_token.clone(),
+                scopes: token_result.get_scopes().into_iter().collect(),
+                issued_at: chrono::Utc::now().timestamp(),
+            },
+            documents::WriteOptions::default(),
+        )?;
+
+        OAuthTokenResponse::new(
+            access_token,
+            Some(jwt_token),
+            scopes,
+        )
+    } else {
+        OAuthTokenResponse::new(jwt_token, None, scopes)
+    };
+
+    redis_connection.del(code)?;
+    return Ok(content::Json(serde_json::to_string(&token_response)?));
 }
 
 /// Create a code for an authorized firestore user that can be changed to access tokens
@@ -376,10 +373,11 @@ pub fn revoke_by_oauth(
     Ok(())
 }
 
-/// This is a rate limited endpoint to poll for an auth token
+/// This is a rate limited endpoint to request user information if the used auth token
+/// has the profile scope.
 #[get("/userinfo?<user_id>")]
 pub fn user_info(
-    user_id: &RawStr,
+    user_id: Option<String>,
     oauth_user: guard_oauth_jwt_access::OAuthIdentity,
     firebase: rocket::State<Mutex<SASession>>,
     _rate_limiter: RateLimiter,
@@ -390,12 +388,20 @@ pub fn user_info(
         ));
     }
 
+    let user_id = user_id.or_else(|| oauth_user.user_id);
+
+    if user_id.is_none() {
+        return Err(MyResponder::bad_request("invalid_user"));
+    }
+
+    let user_id = user_id.unwrap();
+
     let session_mutex = firebase.lock()?;
     let session: &SASession = session_mutex.deref();
 
     let user_session = firestore_db_and_auth::UserSession::by_user_id(
         &session.credentials,
-        user_id.as_str(),
+        &user_id,
         false,
     )?;
 
