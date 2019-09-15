@@ -3,7 +3,7 @@
     "id": "ohx",
     "title": "OpenHAB X Installation",
     "author": "David Gräff",
-    "logo_url": "/img/openhab-installation.svg",
+    "logo_url": "/img/oauth-client-cloud-connector.png",
     "redirect_uri": [ ],
     "scopes": ["device", "offline_access"]
   },
@@ -11,7 +11,7 @@
     "id": "addoncli",
     "title": "Addon Registry Tool",
     "author": "David Gräff",
-    "logo_url": "/img/openhab-cli.svg",
+    "logo_url": "/img/oauth-client-addon-cli.png",
     "redirect_uri": [
       "https://openhabx.com/oauth_device_confirm"
     ],
