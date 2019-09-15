@@ -322,7 +322,7 @@ pub fn authorize(
         unsigned,
     };
     let uri = format!(
-        "https://openhabx.com/auth?{}",
+        "https://openhabx.com/oauth?{}",
         &message as &dyn UriDisplay<Query>
     );
 
