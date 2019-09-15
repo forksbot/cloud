@@ -15,6 +15,8 @@ use rocket::http::{ContentType, Header, Status};
 
 use firestore_db_and_auth::{credentials::Credentials as DBCredentials, sessions::service_account::Session as SASession, errors::FirebaseError, documents, UserSession, FirebaseAuthBearer};
 
+const CI_DEMO_USER: &'static str = "ci@openhabx.com";
+
 #[derive(Deserialize)]
 pub struct ErrorResult {
     pub error: String,
@@ -29,13 +31,13 @@ impl From<String> for ErrorResult {
 fn create_user(firebase: &SASession) -> Result<UserSession, failure::Error> {
 
     //// Create demo user
-    let user_session = match firestore_db_and_auth::users::sign_up(&firebase, "ci@openhabx.com", "password1") {
+    let user_session = match firestore_db_and_auth::users::sign_up(&firebase, CI_DEMO_USER, "password1") {
         Ok(session) => session,
         Err(err) => {
             match err {
                 FirebaseError::APIError(code, message, _context) => {
                     match code == 400 && message == "EMAIL_EXISTS" {
-                        true => firestore_db_and_auth::users::sign_in(&firebase, "ci@openhabx.com", "password1")?,
+                        true => firestore_db_and_auth::users::sign_in(&firebase, CI_DEMO_USER, "password1")?,
                         false => bail!("Expected EMAIL_EXISTS: {} {} {}", code, message, _context)
                     }
                 }
@@ -87,7 +89,7 @@ fn check_for_users(client: &rocket::local::Client, g_access_token: &str, firebas
     Ok(())
 }
 
-fn user_info(client: &rocket::local::Client, g_access_token: &str) -> Result<(), failure::Error> {
+fn user_info(client: &rocket::local::Client, g_access_token: &str, ohx_access_token: &str) -> Result<(), failure::Error> {
 
     ///////////////// userinfo (Io2cPph06rUWM3ABcIHguR3CIw6v1) FAIL (wrong scope. Need "profile") /////////////////
 
@@ -105,7 +107,7 @@ fn user_info(client: &rocket::local::Client, g_access_token: &str) -> Result<(),
     let response = request.dispatch();
     assert_eq!(response.status(), Status::Unauthorized);
 
-    ///////////////// userinfo (Io2cPph06rUWM3ABcIHguR3CIw6v1) OK /////////////////
+    ///////////////// create service account session with correct scopes /////////////////
 
     let (_, g_access_token, _) = Credentials::load_and_check(
         include_str!("../secrets/google-ci-key.json"),
@@ -116,7 +118,9 @@ fn user_info(client: &rocket::local::Client, g_access_token: &str) -> Result<(),
         Some(&["profile"]),
     )?;
 
-    println!("/userinfo");
+    ///////////////// userinfo (Io2cPph06rUWM3ABcIHguR3CIw6v1) OK /////////////////
+
+    println!("/userinfo by service account");
     let mut request = client.get(format!(
         "/userinfo?user_id={}",
         "Io2cPph06rUWM3ABcIHguR3CIw6v1"
@@ -128,17 +132,36 @@ fn user_info(client: &rocket::local::Client, g_access_token: &str) -> Result<(),
     ));
 
     let mut response = request.dispatch();
-    assert_eq!(response.status(), Status::Ok);
-    assert!(response
+    let body = response
         .body_string()
-        .unwrap()
-        .contains("Io2cPph06rUWM3ABcIHguR3CIw6v1"));
+        .unwrap();
+    println!("response: {}", body);
+    assert_eq!(response.status(), Status::Ok);
+    assert!(body.contains("Io2cPph06rUWM3ABcIHguR3CIw6v1"));
+
+    ///////////////// userinfo (Io2cPph06rUWM3ABcIHguR3CIw6v1) OK /////////////////
+    println!("/userinfo by user account");
+    let mut request = client.get("/userinfo");
+    request.add_header(ContentType::JSON);
+    request.add_header(Header::new(
+        "Authorization",
+        format!("Bearer {}", &ohx_access_token),
+    ));
+
+    let mut response = request.dispatch();
+    let body = response
+        .body_string()
+        .unwrap();
+    println!("response: {}", body);
+    assert!(body.contains("ci@openhabx.com"));
+    assert_eq!(response.status(), Status::Ok);
+
 
     Ok(())
 }
 
 
-fn auth_and_token_code_grant_flow(client: &rocket::local::Client, _g_access_token: &str, _firebase: &SASession, user_session : &UserSession) -> Result<(), failure::Error> {
+fn auth_and_token_code_grant_flow(client: &rocket::local::Client, _g_access_token: &str, _firebase: &SASession, user_session: &UserSession) -> Result<(), failure::Error> {
 
     ///////////////// code grant + device flow - authorize fail client unknown /////////////////
 
@@ -179,7 +202,7 @@ fn auth_and_token_code_grant_flow(client: &rocket::local::Client, _g_access_toke
     ///////////////// code grant flow - authorize OK /////////////////
     message.scope = Some("device".into());
 
-    info!("/authorize");
+    info!("/authorize code grant");
     let mut request = client.post("/authorize");
     request.add_header(ContentType::Form);
     request.set_body(format!("{}", &message as &dyn UriDisplay<Query>));
@@ -206,7 +229,7 @@ fn auth_and_token_code_grant_flow(client: &rocket::local::Client, _g_access_toke
     };
     r.scopes.insert("device".to_owned());
 
-    info!("/grant_scopes");
+    info!("/grant_scopes code grant");
     let mut request = client.post("/grant_scopes");
     request.add_header(ContentType::JSON);
     request.add_header(Header::new(
@@ -231,7 +254,7 @@ fn auth_and_token_code_grant_flow(client: &rocket::local::Client, _g_access_toke
         ..Default::default()
     };
 
-    info!("/token");
+    info!("/token code grant");
     let mut request = client.post("/token");
     request.add_header(ContentType::Form);
     request.set_body(format!("{}", &message as &dyn UriDisplay<Query>));
@@ -250,10 +273,10 @@ fn auth_and_token_code_grant_flow(client: &rocket::local::Client, _g_access_toke
     Ok(())
 }
 
-fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &str, _firebase: &SASession, user_session : &UserSession) -> Result<(), failure::Error> {
+fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &str, firebase: &SASession, user_session: &UserSession) -> Result<(), failure::Error> {
     ///////////////// device flow - authorize OK /////////////////
 
-    let message = oauth::GenerateCodeDTO {
+    let generate_token = oauth::GenerateCodeDTO {
         client_id: "addoncli".to_string(),
         client_secret: None,
         client_name: None,
@@ -266,7 +289,7 @@ fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &
     info!("/authorize device flow - authorize OK");
     let mut request = client.post("/authorize");
     request.add_header(ContentType::Form);
-    request.set_body(format!("{}", &message as &dyn UriDisplay<Query>));
+    request.set_body(format!("{}", &generate_token as &dyn UriDisplay<Query>));
 
     let mut response = request.dispatch();
     let code = response.body_string().unwrap();
@@ -275,9 +298,36 @@ fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &
 
     let token_response: oauth::DeviceFlowResponse = serde_json::from_str(&code)?;
     let redirect: oauth::AuthPageRedirectUri = serde_urlencoded::from_str(&token_response.verification_uri[token_response.verification_uri.find("?").unwrap() + 1..])?;
-    assert_eq!(redirect.client_id, message.client_id.clone());
+    assert_eq!(redirect.client_id, generate_token.client_id.clone());
     assert_eq!(redirect.response_type, "device");
-    assert_eq!(redirect.state, message.state);
+    assert_eq!(redirect.state, generate_token.state);
+
+    ///////////////// device flow - Check .. not authorized yet /////////////////
+
+    use rocket::UriDisplayQuery;
+
+    #[derive(UriDisplayQuery)]
+    pub struct TokenDTO {
+        pub device_code: String,
+        pub client_id: String,
+        pub grant_type: String,
+    }
+
+    let message = TokenDTO {
+        device_code: code,
+        client_id: generate_token.client_id.clone(),
+        grant_type: "urn:ietf:params:oauth:grant-type:device_code".to_string(),
+    };
+
+    info!("/token device flow authorization_pending");
+    let mut request = client.post("/token");
+    request.add_header(ContentType::Form);
+    request.set_body(format!("{}", &message as &dyn UriDisplay<Query>));
+
+    let mut response = request.dispatch();
+    assert_eq!(response.status(), Status::BadRequest);
+    let response = ErrorResult::from(response.body_string().unwrap());
+    assert_eq!(response.error, "authorization_pending");
 
     ///////////////// device flow - Simulated UI grants scopes OK /////////////////
 
@@ -308,9 +358,9 @@ fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &
 
     let message = oauth::TokenDTO {
         code: Some(code),
-        client_id: message.client_id,
+        client_id: generate_token.client_id,
         client_secret: None,
-        grant_type: "authorization_code".to_string(),
+        grant_type: "urn:ietf:params:oauth:grant-type:device_code".to_string(),
         ..Default::default()
     };
 
@@ -357,10 +407,21 @@ fn integration() -> Result<(), failure::Error> {
         None::<&[&str]>,
     )?;
 
+    let (_, ohx_access_token, _) = Credentials::load_and_check_for_user(
+        include_str!("../secrets/ohx_admin_account.json"),
+        &[
+            include_str!("../secrets/ohx_oauth_key.json"),
+        ],
+        Some(&["profile"]),
+        CI_DEMO_USER.to_owned(),
+    )?;
+
+
     let client = rocket::local::Client::new(rocket).expect("valid rocket instance");
 
     let user_session = create_user(&firebase)?;
-    user_info(&client, &g_access_token)?;
+
+    user_info(&client, &g_access_token, &ohx_access_token)?;
     auth_and_token_code_grant_flow(&client, &g_access_token, &firebase, &user_session)?;
     auth_and_token_device_flow(&client, &g_access_token, &firebase, &user_session)?;
     check_for_users(&client, &g_access_token, &firebase)?;

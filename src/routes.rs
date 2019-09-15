@@ -183,10 +183,8 @@ pub fn token(
         return Ok(content::Json(serde_json::to_string(&token_response)?));
     }
 
-    if token_request.code.is_none() {
-        return Err(MyResponder::bad_request("You must provide a refresh_token"));
-    }
-    let code = token_request.code.as_ref().unwrap();
+    let code = token_request.code.as_ref().or(token_request.device_code.as_ref())
+        .ok_or(MyResponder::bad_request("You must provide a code / device_code"))?;
 
     let is_device_code = match &token_request.grant_type[..] {
         "urn:ietf:params:oauth:grant-type:device_code" | "device_code" => true,

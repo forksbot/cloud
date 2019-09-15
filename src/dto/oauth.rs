@@ -38,8 +38,10 @@ pub struct AuthPageRedirectUri {
 
 #[derive(Default, Deserialize, Serialize, FromForm, UriDisplayQuery)]
 pub struct TokenDTO {
-    #[serde(skip_serializing_if = "Option::is_none", alias = "device_code")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,          // for grant_type "authorization_code" and "*device_code"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_code: Option<String>,          // for grant_type "authorization_code" and "*device_code"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<String>, // for grant_type "refresh_token"
     #[serde(skip_serializing_if = "Option::is_none")]
