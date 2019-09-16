@@ -1,7 +1,7 @@
 {
   "ohx": {
     "id": "ohx",
-    "title": "OpenHAB X Installation",
+    "title": "OHX Installation",
     "author": "David Gräff",
     "logo_url": "/img/oauth-client-cloud-connector.png",
     "redirect_uri": [ ],

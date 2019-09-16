@@ -15,9 +15,7 @@ use rocket::{catchers, config::Environment, routes, Config};
 use std::env;
 use std::sync::Mutex;
 
-use cloud_vault::{
-    access_scopes::AccessScopes, credentials::Credentials, error_routes, guard_rate_limiter,
-};
+use cloud_vault::{access_scopes::AccessScopes, credentials::Credentials, error_routes, guard_rate_limiter, fairing_cors};
 use firestore_db_and_auth::{
     credentials::Credentials as DBCredentials, sessions::service_account::Session as SASession,
 };
@@ -97,6 +95,7 @@ pub fn create_rocket(rate_limit: u32) -> Result<rocket::Rocket, failure::Error> 
         .manage(redis)
         .manage(oauth_clients)
         .manage(access_scopes)
+        .attach(fairing_cors::CorsFairing)
         .register(catchers![
             error_routes::not_found,
             error_routes::access_denied,
