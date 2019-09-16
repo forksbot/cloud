@@ -13,6 +13,8 @@ pub struct OAuthClient {
     pub title: String,
     pub author: String,
     pub logo_url: String,
+    #[serde(default)]
     pub redirect_uri: Vec<String>,
+    #[serde(default)]
     pub scopes: HashSet<String>,
 }

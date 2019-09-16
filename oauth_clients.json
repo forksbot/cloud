@@ -4,7 +4,6 @@
     "title": "OHX Installation",
     "author": "David Gräff",
     "logo_url": "/img/oauth-client-cloud-connector.png",
-    "redirect_uri": [ ],
     "scopes": ["device", "offline_access"]
   },
   "addoncli": {
@@ -12,9 +11,6 @@
     "title": "Addon Registry Tool",
     "author": "David Gräff",
     "logo_url": "/img/oauth-client-addon-cli.png",
-    "redirect_uri": [
-      "https://openhabx.com/oauth_device_confirm"
-    ],
     "requires_state": true,
     "scopes": ["addons", "profile", "offline_access"]
   },
