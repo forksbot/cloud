@@ -273,7 +273,7 @@ fn auth_and_token_code_grant_flow(client: &rocket::local::Client, _g_access_toke
     Ok(())
 }
 
-fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &str, firebase: &SASession, user_session: &UserSession) -> Result<(), failure::Error> {
+fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &str, _firebase: &SASession, user_session: &UserSession) -> Result<(), failure::Error> {
     ///////////////// device flow - authorize OK /////////////////
 
     let generate_token = oauth::GenerateCodeDTO {

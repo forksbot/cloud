@@ -4,7 +4,7 @@ use crate::dto::oauth::*;
 use crate::responder_type::MyResponder;
 use crate::token::{decrypt_unsigned_jwt_token, encrypt_unsigned_jwt_token, hash_of_token};
 use crate::oauth_clients::OAuthClients;
-use crate::tools::JoinableIterator;
+use crate::tools::join;
 
 // External, controlled libraries
 use cloud_vault::{
@@ -30,6 +30,7 @@ use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::sync::Mutex;
 use rocket_contrib::json::Json;
+use biscuit::{TemporalOptions, Validation};
 
 const CREDENTIALS_GOOGLE_SERVICE_ACCOUNT_INDEX: usize = 0;
 const CREDENTIALS_OHX_SERVICE_ACCOUNT_INDEX: usize = 1;
@@ -110,6 +111,14 @@ pub fn grant_scopes(
     credentials_list: rocket::State<Vec<Credentials>>,
     _rate_limiter: RateLimiter,
 ) -> Result<String, MyResponder> {
+    let mut redis_connection = redis.get_connection()?;
+
+    //// Get stored access token from Redis. Might be "access_denied" or not set ////
+    let jwt_token: Option<String> = redis_connection.get(&request.code)?;
+    if jwt_token.is_some() {
+        return Err(MyResponder::bad_request("already_used"));
+    }
+
     let credentials = credentials_list
         .get(CREDENTIALS_OHX_SERVICE_ACCOUNT_INDEX)
         .unwrap();
@@ -121,6 +130,11 @@ pub fn grant_scopes(
     jwt.header_mut()?.registered.algorithm = SignatureAlgorithm::RS256;
 
     let mut payload = jwt.payload_mut()?;
+
+    // Validate that this temporary, unsigned token from /authorize is still valid.
+    // This is usually limited to 5 minutes.
+    payload.registered.validate_exp(Validation::Validate(TemporalOptions::default()))
+        .map_err(|_| MyResponder::bad_request("expired"))?;
 
     // Fix user_id
     payload.private.uid = Some(firestore_auth.0.user_id);
@@ -136,13 +150,35 @@ pub fn grant_scopes(
         .map(|f| f.to_owned())
         .collect();
 
-    payload.private.scope = Some(requested_scopes.intersection(&request.scopes).join(" "));
+    payload.private.scope = Some(join(requested_scopes.intersection(&request.scopes), " "));
 
-    // Sign
-    let jwt = jwt.encode(&secret.deref())?.encoded()?.encode();
+    use std::ops::Add;
 
-    let mut redis_connection = redis.get_connection()?;
-    redis_connection.set_nx(&request.code, &jwt)?;
+    // If there is a refresh_token, it will be appended as second argument after a whitespace
+    let two_jwts = match request.scopes.contains(SCOPE_OFFLINE_ACCESS) {
+        true => {
+            payload.registered.expiry = Some(biscuit::Timestamp::from(chrono::Utc::now().add(chrono::Duration::weeks(52 * 10))));
+            let scopes = requested_scopes.intersection(&request.scopes).filter(|f| f.as_str() != SCOPE_OFFLINE_ACCESS);
+            // Create access token (same as refresh token but without the SCOPE_OFFLINE_ACCESS scope
+            // and with only 1h expiry time
+            let access_token = jwt::create_jwt_encoded_for_user(
+                &credentials,
+                Some(scopes),
+                Duration::seconds(3600),
+                payload.private.client_id.as_ref().and_then(|f| Some(f.clone())),
+                payload.private.uid.as_ref().unwrap().clone(),
+                payload.registered.subject.as_ref().unwrap().to_string())?;
+            // Sign
+            format!("{} {}", access_token, jwt.encode(&secret.deref())?.encoded()?.encode())
+        }
+        false => {
+            payload.registered.expiry = Some(biscuit::Timestamp::from(chrono::Utc::now().add(chrono::Duration::hours(1))));
+            // Sign
+            jwt.encode(&secret.deref())?.encoded()?.encode()
+        }
+    };
+
+    redis_connection.set_nx(&request.code, &two_jwts)?;
     redis_connection.expire(&request.code, 360)?;
     Ok(request.code.clone())
 }
@@ -195,21 +231,26 @@ pub fn token(
     let mut redis_connection = redis.get_connection()?;
 
     //// Get stored access token from Redis. Might be "access_denied" or not set ////
-    let jwt_token: Option<String> = redis_connection.get(code)?;
-    if jwt_token.is_none() {
+    let two_jwts: Option<String> = redis_connection.get(code)?;
+    if two_jwts.is_none() {
         if is_device_code {
             return Err(MyResponder::bad_request("authorization_pending"));
         } else {
             return Err(MyResponder::bad_request("expired_token"));
         }
     }
-    let jwt_token = jwt_token.unwrap();
-    if &jwt_token == "access_denied" {
+    let two_jwts = two_jwts.unwrap();
+    if &two_jwts == "access_denied" {
         return Err(MyResponder::bad_request("access_denied"));
     }
 
+    let mut two_jwts = two_jwts.split(" ");
+    let access_token = two_jwts.next().unwrap();
+    let refresh_token = two_jwts.next().unwrap_or(&access_token);
+
+
     //// verify token
-    let token_result = jwt::verify_access_token(&credentials, &jwt_token)?;
+    let token_result = jwt::verify_access_token(&credentials, &refresh_token)?;
     if token_result.is_none() {
         redis_connection.del(code)?;
         return Err(MyResponder::bad_request("expired_token"));
@@ -223,16 +264,6 @@ pub fn token(
 
     let scopes = token_result.get_scopes();
     let token_response = if scopes.contains(SCOPE_OFFLINE_ACCESS) {
-        // Create access token (same as refresh token but without the SCOPE_OFFLINE_ACCESS scope
-        // and with only 1h expiry time
-        let access_token = jwt::create_jwt_encoded_for_user(
-            &credentials,
-            Some(scopes.iter().filter(|f| f.as_str() != SCOPE_OFFLINE_ACCESS)),
-            Duration::hours(1),
-            Some(token_request.client_id.clone()),
-            uid.clone(),
-            token_result.subject.clone(),
-        )?;
 
         // Write refresh token to database. Can be revoked by the user (== deleted) and is used
         // by the token endpoint to create new access_tokens.
@@ -243,7 +274,7 @@ pub fn token(
             &db::AccessTokenInDB {
                 uid: uid.clone(),
                 client_id: token_request.client_id.clone(),
-                token: jwt_token.clone(),
+                token: refresh_token.to_owned(),
                 scopes: token_result.get_scopes().into_iter().collect(),
                 issued_at: chrono::Utc::now().timestamp(),
             },
@@ -251,19 +282,25 @@ pub fn token(
         )?;
 
         OAuthTokenResponse::new(
-            access_token,
-            Some(jwt_token),
+            access_token.to_owned(),
+            Some(refresh_token.to_owned()),
             scopes,
         )
     } else {
-        OAuthTokenResponse::new(jwt_token, None, scopes)
+        OAuthTokenResponse::new(access_token.to_owned(), None, scopes)
     };
 
     redis_connection.del(code)?;
     return Ok(content::Json(serde_json::to_string(&token_response)?));
 }
 
-/// Create a code for an authorized firestore user that can be changed to access tokens
+/// Code grant Flow: Redirect the user to the openhabx.com/oauth?client_id&code&response_type&unsigned page.
+/// Device Flow: Returns a json with the same arguments
+///
+/// The arguments:
+/// * unsigned: a jwt, but unsigned, compressed and encrypted. Cannot be modified by the UI
+///   and must be passed to the /grant_scopes endpoint unchanged.
+/// * code: The hash of unsigned.
 #[post("/authorize", data = "<request>")]
 pub fn authorize(
     request: GenerateTokenRequest,
@@ -294,16 +331,11 @@ pub fn authorize(
         return Err(MyResponder::bad_request("Requested scopes are invalid"));
     }
 
-    let duration = match scopes.contains(SCOPE_OFFLINE_ACCESS) {
-        true => chrono::Duration::weeks(52 * 10),
-        false => chrono::Duration::hours(1),
-    };
-
     // Create a token without signature
     let jwt = jwt::create_jwt(
         &credentials,
         Some(scopes),
-        duration,
+        chrono::Duration::minutes(5),
         Some(request.client_id.clone()),
         None, &credentials.client_email,
     )?;
@@ -337,7 +369,7 @@ pub fn authorize(
                     verification_uri: uri,
                     interval: 2,
                     device_code: message.unsigned,
-                    expires_in: 3600,
+                    expires_in: 360,
                 })?,
             )))
         }

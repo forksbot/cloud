@@ -97,13 +97,13 @@ impl OAuthTokenResponse {
         refresh_token: Option<String>,
         scopes: HashSet<String>,
     ) -> Self {
-        use crate::tools::JoinableIterator;
+        use crate::tools::join;
         OAuthTokenResponse {
             access_token,
             refresh_token,
             expires_in: 3600,
             token_type: "bearer".to_string(),
-            scope: scopes.iter().join(" ")
+            scope: join(scopes.iter()," ")
         }
     }
 }
