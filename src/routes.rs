@@ -178,8 +178,7 @@ pub fn grant_scopes(
         }
     };
 
-    redis_connection.set_nx(&request.code, &two_jwts)?;
-    redis_connection.expire(&request.code, 360)?;
+    redis_connection.set_ex(&request.code, &two_jwts, 360)?;
     Ok(request.code.clone())
 }
 
@@ -300,7 +299,9 @@ pub fn token(
 /// The arguments:
 /// * unsigned: a jwt, but unsigned, compressed and encrypted. Cannot be modified by the UI
 ///   and must be passed to the /grant_scopes endpoint unchanged.
-/// * code: The hash of unsigned.
+/// * code: The hash of unsigned but otherwise opaque to the consumer.
+///   Will be used by /grant_scopes as key to store generated tokens in redis and will be used
+///   by /token to retrieve those generated tokens.
 #[post("/authorize", data = "<request>")]
 pub fn authorize(
     request: GenerateTokenRequest,
@@ -365,10 +366,10 @@ pub fn authorize(
         "device" => {
             Ok(RedirectOrResponseAuthorize::Json(content::Json(
                 serde_json::to_string(&DeviceFlowResponse {
-                    user_code: hash_of_token(&message.unsigned.as_bytes()),
+                    user_code: String::new(),
+                    device_code: message.code,
                     verification_uri: uri,
                     interval: 2,
-                    device_code: message.unsigned,
                     expires_in: 360,
                 })?,
             )))
@@ -459,11 +460,12 @@ pub fn list_intermediate_tokens(
         ));
     }
 
-    let mut c = redis.get_connection()?;
-    let k: Vec<String> = c.keys("*").unwrap();
+    let mut redis_connection = redis.get_connection()?;
+    redis_connection.set_ex("check", "write", 20)?;
+    let k: Vec<String> = redis_connection.keys("*").unwrap();
     let mut map: HashMap<String, String> = HashMap::new();
     for key in k {
-        let v: Option<String> = c.get(&key).unwrap();
+        let v: Option<String> = redis_connection.get(&key).unwrap();
         if !v.is_some() {
             continue;
         }
