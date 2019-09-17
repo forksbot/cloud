@@ -273,7 +273,7 @@ fn auth_and_token_code_grant_flow(client: &rocket::local::Client, _g_access_toke
     Ok(())
 }
 
-fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &str, _firebase: &SASession, user_session: &UserSession) -> Result<(), failure::Error> {
+fn auth_and_token_device_flow(client: &rocket::local::Client, g_access_token: &str, _firebase: &SASession, user_session: &UserSession) -> Result<(), failure::Error> {
     ///////////////// device flow - authorize OK /////////////////
 
     let generate_token = oauth::GenerateCodeDTO {
@@ -332,8 +332,8 @@ fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &
     ///////////////// device flow - Simulated UI grants scopes OK /////////////////
 
     let mut r = oauth::GrantRequest {
-        unsigned: token_response.device_code,
-        code: token_response.user_code,
+        unsigned: redirect.unsigned,
+        code: redirect.code,
         scopes: Default::default(),
     };
     r.scopes.insert("addons".to_owned());
@@ -358,8 +358,7 @@ fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &
 
     let message = oauth::TokenDTO {
         code: Some(code),
-        client_id: generate_token.client_id,
-        client_secret: None,
+        client_id: generate_token.client_id.clone(),
         grant_type: "urn:ietf:params:oauth:grant-type:device_code".to_string(),
         ..Default::default()
     };
@@ -375,10 +374,44 @@ fn auth_and_token_device_flow(client: &rocket::local::Client, _g_access_token: &
     assert_eq!(response.status(), Status::Ok);
 
     let token_response: oauth::OAuthTokenResponse = serde_json::from_str(&code)?;
-    assert_eq!(token_response.scope, "addons offline_access");
+    let refresh_token = token_response.refresh_token.as_ref().unwrap();
+    assert!(token_response.scope.contains("addons") && token_response.scope.contains("offline_access"));
     assert_eq!(token_response.token_type, "bearer");
     assert!(!token_response.access_token.is_empty());
-    assert!(!token_response.refresh_token.unwrap().is_empty());
+    assert!(!refresh_token.is_empty());
+
+    // Check if in database -- get new access token
+
+    info!("/token refresh token");
+
+    let message = oauth::TokenDTO {
+        refresh_token: Some(refresh_token.to_owned()),
+        client_id: generate_token.client_id,
+        grant_type: "refresh_token".to_string(),
+        ..Default::default()
+    };
+
+    let mut request = client.post("/token");
+    request.add_header(ContentType::Form);
+    request.set_body(format!("{}", &message as &dyn UriDisplay<Query>));
+
+    let mut response = request.dispatch();
+    let code = response.body_string().unwrap();
+    println!("{}", &code);
+    assert_eq!(response.status(), Status::Ok);
+
+    // Remove token
+
+    info!("/revoke");
+
+    let mut request = client.get(format!("/revoke?token={}", refresh_token));
+    request.add_header(Header::new(
+        "Authorization",
+        format!("Bearer {}", g_access_token),
+    ));
+
+    let mut response = request.dispatch();
+    assert_eq!(response.status(), Status::Ok);
 
     Ok(())
 }

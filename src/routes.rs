@@ -269,7 +269,7 @@ pub fn token(
         documents::write(
             session,
             "access_tokens",
-            Some(&code),
+            Some(&hash_of_token(refresh_token.as_bytes())),
             &db::AccessTokenInDB {
                 uid: uid.clone(),
                 client_id: token_request.client_id.clone(),
