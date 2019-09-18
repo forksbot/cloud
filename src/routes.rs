@@ -201,14 +201,17 @@ pub fn token(
         .unwrap();
 
     if &token_request.grant_type == "refresh_token" {
-        if token_request.refresh_token.is_none() {
-            return Err(MyResponder::bad_request("You must provide a refresh_token"));
-        }
-        let session_mutex = firebase.lock()?;
-        let session: &SASession = session_mutex.deref();
+        let refresh_token = match &token_request.refresh_token {
+            None => return Err(MyResponder::bad_request("You must provide a refresh_token")),
+            Some(r) => r
+        };
 
-        let code = hash_of_token(token_request.refresh_token.as_ref().unwrap().as_bytes());
-        let db_entry: db::AccessTokenInDB = firestore_db_and_auth::documents::read(session, "access_tokens", code).map_err(|_e| MyResponder::bad_request("Access Token not valid. It may have been revoked!"))?;
+        let code = hash_of_token(refresh_token.as_bytes());
+        let db_entry: db::AccessTokenInDB = {
+            let session_mutex = firebase.lock()?;
+            let session: &SASession = session_mutex.deref();
+            firestore_db_and_auth::documents::read(session, "access_tokens", code).map_err(|_e| MyResponder::bad_request("Access Token not valid. It may have been revoked!"))?
+        };
         // Filter out offline scope and create access token
         let access_token = jwt::create_jwt_encoded_for_user(&credentials, Some(db_entry.scopes.iter().filter(|f| f.as_str() != SCOPE_OFFLINE_ACCESS)),
                                                             Duration::hours(1),
@@ -256,32 +259,35 @@ pub fn token(
     }
     let token_result = token_result.unwrap();
 
-    if token_result.claims.uid.is_none() {
-        return Err(MyResponder::internal_error("Access token has no user_id!"));
-    }
-    let uid = token_result.claims.uid.as_ref().unwrap().clone();
+    let uid = match &token_result.claims.uid {
+        None =>return Err(MyResponder::internal_error("Access token has no user_id!")),
+        Some(uid) => uid
+    };
 
     let scopes = token_result.get_scopes();
     let token_response = if scopes.contains(SCOPE_OFFLINE_ACCESS) {
-
-        let session_mutex = firebase.lock()?;
-        let session: &SASession = session_mutex.deref();
+        let access_token_in_db = db::AccessTokenInDB {
+            uid: uid.to_owned(),
+            client_id: token_request.client_id.clone(),
+            token: refresh_token.to_owned(),
+            scopes: token_result.get_scopes().into_iter().collect(),
+            issued_at: chrono::Utc::now().timestamp(),
+        };
 
         // Write refresh token to database. Can be revoked by the user (== deleted) and is used
         // by the token endpoint to create new access_tokens.
-        documents::write(
-            session,
-            "access_tokens",
-            Some(&hash_of_token(refresh_token.as_bytes())),
-            &db::AccessTokenInDB {
-                uid: uid.clone(),
-                client_id: token_request.client_id.clone(),
-                token: refresh_token.to_owned(),
-                scopes: token_result.get_scopes().into_iter().collect(),
-                issued_at: chrono::Utc::now().timestamp(),
-            },
-            documents::WriteOptions::default(),
-        )?;
+        {
+            let session_mutex = firebase.lock()?;
+            let session: &SASession = session_mutex.deref();
+
+            documents::write(
+                session,
+                "access_tokens",
+                Some(&hash_of_token(refresh_token.as_bytes())),
+                &access_token_in_db,
+                documents::WriteOptions::default(),
+            )?;
+        }
 
         OAuthTokenResponse::new(
             access_token.to_owned(),
