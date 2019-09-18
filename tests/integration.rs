@@ -410,7 +410,7 @@ fn auth_and_token_device_flow(client: &rocket::local::Client, g_access_token: &s
         format!("Bearer {}", g_access_token),
     ));
 
-    let mut response = request.dispatch();
+    let response = request.dispatch();
     assert_eq!(response.status(), Status::Ok);
 
     Ok(())

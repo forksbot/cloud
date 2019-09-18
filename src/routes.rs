@@ -244,7 +244,7 @@ pub fn token(
     }
 
     let mut two_jwts = two_jwts.split(" ");
-    let access_token = two_jwts.next().unwrap();
+    let access_token = two_jwts.next().unwrap_or_default();
     let refresh_token = two_jwts.next().unwrap_or(&access_token);
 
 
