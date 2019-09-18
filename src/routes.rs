@@ -200,13 +200,13 @@ pub fn token(
         .get(CREDENTIALS_OHX_SERVICE_ACCOUNT_INDEX)
         .unwrap();
 
-    let session_mutex = firebase.lock()?;
-    let session: &SASession = session_mutex.deref();
-
     if &token_request.grant_type == "refresh_token" {
         if token_request.refresh_token.is_none() {
             return Err(MyResponder::bad_request("You must provide a refresh_token"));
         }
+        let session_mutex = firebase.lock()?;
+        let session: &SASession = session_mutex.deref();
+
         let code = hash_of_token(token_request.refresh_token.as_ref().unwrap().as_bytes());
         let db_entry: db::AccessTokenInDB = firestore_db_and_auth::documents::read(session, "access_tokens", code).map_err(|_e| MyResponder::bad_request("Access Token not valid. It may have been revoked!"))?;
         // Filter out offline scope and create access token
@@ -263,6 +263,9 @@ pub fn token(
 
     let scopes = token_result.get_scopes();
     let token_response = if scopes.contains(SCOPE_OFFLINE_ACCESS) {
+
+        let session_mutex = firebase.lock()?;
+        let session: &SASession = session_mutex.deref();
 
         // Write refresh token to database. Can be revoked by the user (== deleted) and is used
         // by the token endpoint to create new access_tokens.

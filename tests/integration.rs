@@ -384,21 +384,23 @@ fn auth_and_token_device_flow(client: &rocket::local::Client, g_access_token: &s
 
     info!("/token refresh token");
 
-    let message = oauth::TokenDTO {
-        refresh_token: Some(refresh_token.to_owned()),
-        client_id: generate_token.client_id,
-        grant_type: "refresh_token".to_string(),
-        ..Default::default()
-    };
+    for _i in 0..10 {
+        let message = oauth::TokenDTO {
+            refresh_token: Some(refresh_token.to_owned()),
+            client_id: generate_token.client_id.clone(),
+            grant_type: "refresh_token".to_string(),
+            ..Default::default()
+        };
 
-    let mut request = client.post("/token");
-    request.add_header(ContentType::Form);
-    request.set_body(format!("{}", &message as &dyn UriDisplay<Query>));
+        let mut request = client.post("/token");
+        request.add_header(ContentType::Form);
+        request.set_body(format!("{}", &message as &dyn UriDisplay<Query>));
 
-    let mut response = request.dispatch();
-    let code = response.body_string().unwrap();
-    println!("{}", &code);
-    assert_eq!(response.status(), Status::Ok);
+        let mut response = request.dispatch();
+        let code = response.body_string().unwrap();
+        println!("{}", &code);
+        assert_eq!(response.status(), Status::Ok);
+    }
 
     // Remove token
 
