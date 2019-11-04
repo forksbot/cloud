@@ -6,6 +6,13 @@
     "logo_url": "/img/oauth-client-cloud-connector.png",
     "scopes": ["device", "offline_access"]
   },
+  "ohxbroker": {
+    "id": "ohxbroker",
+    "title": "OHX Cloud Message Broker",
+    "author": "David Gräff",
+    "logo_url": "/img/oauth-client-cloud-connector.png",
+    "scopes": ["brokerkey", "offline_access"]
+  },
   "addoncli": {
     "id": "addoncli",
     "title": "Addon Registry Tool",
@@ -25,6 +32,17 @@
       "https://pitangui.amazon.com/api/skill/link/MCG3U2FUKINEJ",
       "https://alexa.amazon.co.jp/api/skill/link/MCG3U2FUKINEJ"
     ],
-    "scopes": ["device", "offline_access"]
+    "scopes": ["brokerkey", "device", "offline_access"]
+  },
+  "google_home": {
+    "id": "google_home",
+    "secret": "MCG3U2FUKINEJ",
+    "title": "Google Assistant",
+    "author": "Google",
+    "logo_url": "/img/google_home.jpg",
+    "redirect_uri": [
+      "https://unknown"
+    ],
+    "scopes": ["brokerkey", "device", "offline_access"]
   }
 }

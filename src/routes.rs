@@ -1,15 +1,17 @@
-// own
-use crate::dto::db;
-use crate::dto::oauth::*;
-use crate::responder_type::MyResponder;
-use crate::token::{decrypt_unsigned_jwt_token, encrypt_unsigned_jwt_token, hash_of_token};
-use crate::oauth_clients::OAuthClients;
-use crate::tools::join;
+use crate::{
+    guard_oauth_jwt_access,
+    credentials::Credentials,
+    oauth_clients::OAuthClients,
+    token::{decrypt_unsigned_jwt_token, encrypt_unsigned_jwt_token, hash_of_token},
+    responder_type::MyResponder,
+    dto::oauth::*,
+    dto::db,
+    guard_rate_limiter::RateLimiter,
+    jwt,
+};
 
 // External, controlled libraries
-use cloud_vault::{
-    credentials::Credentials, guard_oauth_jwt_access, guard_rate_limiter::RateLimiter, jwt,
-};
+
 use firestore_db_and_auth::{
     rocket::FirestoreAuthSessionGuard, sessions::service_account::Session as SASession, documents,
 };
@@ -140,17 +142,7 @@ pub fn grant_scopes(
     payload.private.uid = Some(firestore_auth.0.user_id);
 
     // Fix scopes
-    let requested_scopes: HashSet<String> = payload
-        .private
-        .scope
-        .clone()
-        .unwrap_or(String::new())
-        .split(" ")
-        .filter(|f| !f.is_empty())
-        .map(|f| f.to_owned())
-        .collect();
-
-    payload.private.scope = Some(join(requested_scopes.intersection(&request.scopes), " "));
+    payload.private.scope = request.scopes.intersection(&payload.private.scope).cloned().collect();
 
     use std::ops::Add;
 
@@ -158,7 +150,7 @@ pub fn grant_scopes(
     let two_jwts = match request.scopes.contains(SCOPE_OFFLINE_ACCESS) {
         true => {
             payload.registered.expiry = Some(biscuit::Timestamp::from(chrono::Utc::now().add(chrono::Duration::weeks(52 * 10))));
-            let scopes = requested_scopes.intersection(&request.scopes).filter(|f| f.as_str() != SCOPE_OFFLINE_ACCESS);
+            let scopes = payload.private.scope.iter().filter(|f| f.as_str() != SCOPE_OFFLINE_ACCESS);
             // Create access token (same as refresh token but without the SCOPE_OFFLINE_ACCESS scope
             // and with only 1h expiry time
             let access_token = jwt::create_jwt_encoded_for_user(
@@ -260,17 +252,17 @@ pub fn token(
     let token_result = token_result.unwrap();
 
     let uid = match &token_result.claims.uid {
-        None =>return Err(MyResponder::internal_error("Access token has no user_id!")),
+        None => return Err(MyResponder::internal_error("Access token has no user_id!")),
         Some(uid) => uid
     };
 
-    let scopes = token_result.get_scopes();
+    let scopes = token_result.claims.scope;
     let token_response = if scopes.contains(SCOPE_OFFLINE_ACCESS) {
         let access_token_in_db = db::AccessTokenInDB {
             uid: uid.to_owned(),
             client_id: token_request.client_id.clone(),
             token: refresh_token.to_owned(),
-            scopes: token_result.get_scopes().into_iter().collect(),
+            scopes: scopes.clone(),
             issued_at: chrono::Utc::now().timestamp(),
         };
 
@@ -326,6 +318,14 @@ pub fn authorize(
         Some(c) => c,
         None => return Err(MyResponder::bad_request("client_id unknown"))
     };
+
+    if let Some(secret) = &client_data.secret {
+        match &request.client_secret {
+            None => return Err(MyResponder::bad_request("Client secret expected!")),
+            Some(client_secret) if secret != client_secret => return Err(MyResponder::bad_request("Client secret does not match")),
+            _ => {}
+        }
+    }
 
     let credentials = credentials_list
         .get(CREDENTIALS_OHX_SERVICE_ACCOUNT_INDEX)

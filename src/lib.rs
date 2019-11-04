@@ -6,7 +6,12 @@ pub mod oauth_clients;
 pub mod responder_type;
 pub mod routes;
 pub mod token;
+pub mod jwt;
+pub mod credentials;
+pub mod rocket_helper;
 mod tools;
+
+pub use rocket_helper::*;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -15,19 +20,15 @@ use rocket::{catchers, config::Environment, routes, Config};
 use std::env;
 use std::sync::Mutex;
 
-use cloud_vault::{access_scopes::AccessScopes, credentials::Credentials, error_routes, guard_rate_limiter, fairing_cors, catch_all};
+use credentials::Credentials;
+use rocket_helper::{error_routes, guard_rate_limiter, fairing_cors, catch_all};
 use firestore_db_and_auth::{
     credentials::Credentials as DBCredentials, sessions::service_account::Session as SASession,
 };
 use routes::*;
 
-
-
 pub fn create_rocket(rate_limit: u32) -> Result<rocket::Rocket, failure::Error> {
     let oauth_clients = oauth_clients::new(include_str!("../oauth_clients.json"))?;
-
-    // Defines required scopes to access a file
-    let access_scopes = AccessScopes::new(include_str!("../secrets/access_scopes.json"))?;
 
     // Rate limit
     let lim = guard_rate_limiter::RateLimiterMutex::new(rate_limit);
@@ -72,20 +73,19 @@ pub fn create_rocket(rate_limit: u32) -> Result<rocket::Rocket, failure::Error> 
         .finalize()?;
 
     #[cfg(debug_assertions)]
-    {
-        info!("Listening on http://localhost:{}", config.port);
-        info!("Access scopes {:?}", &access_scopes.0);
-        info!(
-            "Google 1h access code for scopes: {:?}\n\t{}",
-            _g_scopes.get_scopes(),
-            &_g_access_token
-        );
-        info!(
-            "OHX 1h access code for scopes: {:?}\n\t{}",
-            _ohx_scopes.get_scopes(),
-            &_ohx_access_token
-        );
-    }
+        {
+            info!("Listening on http://localhost:{}", config.port);
+            info!(
+                "Google 1h access code for scopes: {:?}\n\t{}",
+                _g_scopes.claims.scope,
+                &_g_access_token
+            );
+            info!(
+                "OHX 1h access code for scopes: {:?}\n\t{}",
+                _ohx_scopes.claims.scope,
+                &_ohx_access_token
+            );
+        }
 
     Ok(rocket::custom(config)
         .manage(credentials_list)
@@ -94,7 +94,6 @@ pub fn create_rocket(rate_limit: u32) -> Result<rocket::Rocket, failure::Error> 
         .manage(firebase_credentials)
         .manage(redis)
         .manage(oauth_clients)
-        .manage(access_scopes)
         .attach(fairing_cors::CorsFairing)
         .register(catchers![
             error_routes::not_found,
@@ -119,7 +118,6 @@ pub fn create_rocket(rate_limit: u32) -> Result<rocket::Rocket, failure::Error> 
                 openid_configuration
             ],
         )
-        .mount("/",catch_all::catch_rest())
+        .mount("/", catch_all::catch_rest())
     )
-
 }

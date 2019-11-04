@@ -1,5 +1,7 @@
+use crate::tools::{scope_serialize, scope_deserialize};
+
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{BTreeSet};
 
 use rocket::request::{FromForm, LenientForm};
 use rocket::response::{content, Redirect};
@@ -61,7 +63,7 @@ pub type TokenRequest = LenientForm<TokenDTO>;
 pub struct GrantRequest {
     pub unsigned: String,
     pub code: String,
-    pub scopes: HashSet<String>,
+    pub scopes: BTreeSet<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -88,22 +90,22 @@ pub struct OAuthTokenResponse {
     pub expires_in: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<String>,
-    pub scope: String, // Space delimiter
+    #[serde(skip_serializing_if = "BTreeSet::is_empty", deserialize_with = "scope_deserialize", serialize_with = "scope_serialize")]
+    pub scope: BTreeSet<String>,
 }
 
 impl OAuthTokenResponse {
     pub fn new(
         access_token: String,
         refresh_token: Option<String>,
-        scopes: HashSet<String>,
+        scope: BTreeSet<String>,
     ) -> Self {
-        use crate::tools::join;
         OAuthTokenResponse {
             access_token,
             refresh_token,
             expires_in: 3600,
             token_type: "bearer".to_string(),
-            scope: join(scopes.iter()," ")
+            scope
         }
     }
 }

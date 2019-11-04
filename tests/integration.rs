@@ -4,7 +4,6 @@ use cloud_auth::*;
 use dto::oauth;
 
 use failure::bail;
-use cloud_vault::credentials::Credentials;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -109,7 +108,7 @@ fn user_info(client: &rocket::local::Client, g_access_token: &str, ohx_access_to
 
     ///////////////// create service account session with correct scopes /////////////////
 
-    let (_, g_access_token, _) = Credentials::load_and_check(
+    let (_, g_access_token, _) = credentials::Credentials::load_and_check(
         include_str!("../secrets/google-ci-key.json"),
         &[
             include_str!("../secrets/securetoken@system.gserviceaccount.com.json"),
@@ -265,7 +264,7 @@ fn auth_and_token_code_grant_flow(client: &rocket::local::Client, _g_access_toke
     assert_eq!(response.status(), Status::Ok);
 
     let token_response: oauth::OAuthTokenResponse = serde_json::from_str(&code)?;
-    assert_eq!(token_response.scope, "device");
+    assert!(token_response.scope.contains("device"));
     assert_eq!(token_response.token_type, "bearer");
     assert!(!token_response.access_token.is_empty());
     assert!(token_response.refresh_token.is_none());
@@ -433,7 +432,7 @@ fn integration() -> Result<(), failure::Error> {
     let firebase = SASession::new(firebase_credentials)?;
 
 
-    let (_, g_access_token, _) = Credentials::load_and_check(
+    let (_, g_access_token, _) = credentials::Credentials::load_and_check(
         include_str!("../secrets/google-ci-key.json"),
         &[
             include_str!("../secrets/securetoken@system.gserviceaccount.com.json"),
@@ -442,7 +441,7 @@ fn integration() -> Result<(), failure::Error> {
         None::<&[&str]>,
     )?;
 
-    let (_, ohx_access_token, _) = Credentials::load_and_check_for_user(
+    let (_, ohx_access_token, _) = credentials::Credentials::load_and_check_for_user(
         include_str!("../secrets/ohx_admin_account.json"),
         &[
             include_str!("../secrets/ohx_oauth_key.json"),

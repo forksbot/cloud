@@ -23,6 +23,12 @@
     "icon": "https://www.openhabx.com/icons/oauth/device.png",
     "fa-class":"fas fa-sitemap"
   },
+  "brokerkey": {
+    "title": "Cloud Message Broker",
+    "description": "Allows to connect to the cloud message broker",
+    "icon": "https://www.openhabx.com/icons/oauth/device.png",
+    "fa-class":"fas fa-cloud"
+  },
   "admin": {
     "title": "",
     "description": "Full access",

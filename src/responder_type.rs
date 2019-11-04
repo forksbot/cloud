@@ -1,3 +1,5 @@
+//! # Custom Rocket.rs responder
+
 use rocket::response::Responder;
 use serde_json::json;
 

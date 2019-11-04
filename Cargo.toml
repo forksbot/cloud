@@ -9,32 +9,37 @@ name = "cloud_auth"
 path = "src/lib.rs"
 
 [dependencies]
-rocket = { version="^0.4", default-features = false }
-failure = "^0.1"
 serde_json = "^1.0"
+serde_urlencoded = "0.6.1"
 serde = "^1.0"
 signal-hook = "^0.1"
-stackdriver_logger = "^0.5"
-log = "^0.4"
 chrono = "0.4.9"
 
-firestore-db-and-auth = { version="^0.5", default-features = false, features=["rustls-tls","rocket_support"] }
-cloud-vault= { git = "https://github.com/openhab-nodes/cloud-ci-cd", branch="master", features=[] }
+# Error handling and logging
+failure = "^0.1"
+stackdriver_logger = "^0.5"
+log = "^0.4"
 
+# jwt, checksums, encryption, time based passwords
 biscuit = "^0.3"
-redis = "0.12.0"
-sha2 = "0.8.0"
-base64 = "0.10.1"
+miniz_oxide = "0.3.2" # compression of jwt
 ring = "0.16.9"
-miniz_oxide = "0.3.2"
-bincode = "1.1.4"
-url = "2.1.0"
-serde_urlencoded = "0.6.1"
+sha2 = "0.8.0" # checksums
+base64 = "0.10.1"
+ureq = { version="0.11.2", default-features = false, features=["tls","json"] } # download JWKS
+uuid = { version="0.8.1", default-features = false,features=["v4"] } # unique id for jwt based refresh tokens
+libreauth = "0.12.0" # totp
 
-[dependencies.rocket_contrib]
-version = "0.4.2"
-default-features = false
-features = ["json"]
+# http
+rocket = { version="^0.4", default-features = false }
+rocket_contrib = { version="^0.4", default-features = false, features=["json"] }
+ratelimit_meter = "5.0.0"
+nonzero_ext = "0.1.5"
+url = "2.1.0"
+
+# databases
+firestore-db-and-auth = { version="^0.5", default-features = false, features=["rustls-tls","rocket_support"] }
+redis = "0.12.0"
 
 [patch.crates-io]
 firestore-db-and-auth = {git="https://github.com/davidgraeff/firestore-db-and-auth-rs", branch="master"}
