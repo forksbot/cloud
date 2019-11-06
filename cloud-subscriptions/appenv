@@ -1,0 +1,7 @@
+export APP=cloud-subscription
+export DOMAIN=subscription.openhabx.com
+export CRONURI=https://subscription.openhabx.com/check_payments
+export CRONSERVICEACCOUNT=travisci-deployer@openhabx.iam.gserviceaccount.com
+export CRONEXPR="0 3 * * *"
+export CRONMESSAGE="Setup cron job for 3am"
+export TARGET=x86_64-unknown-linux-musl

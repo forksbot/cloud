@@ -1,0 +1,4 @@
+max_width = 150
+chain_indent = "Visual"
+condense_wildcard_suffices = "true"
+merge_imports = "true"

@@ -1,6 +1,11 @@
 /target/
 **/*.rs.bk
+.idea
 
+# No secrets should be commited
 secrets/
+
+# Build artifacts
 ohx-app
 upx
+*.upx

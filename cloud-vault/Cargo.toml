@@ -1,0 +1,33 @@
+[package]
+name = "cloud-vault"
+version = "0.0.0"
+publish = false
+edition = "2018"
+default-run = "cloud-vault"
+
+[dependencies]
+rocket = { version="^0.4", default-features = false }
+serde_json = "^1.0"
+serde = "^1.0"
+signal-hook = "0.1.11"
+
+failure = "0.1.6"
+
+env_logger = { version = "0.7.1", features = ["termcolor", "atty"], default-features = false }
+stackdriver_logger = "0.5.1"
+log = "0.4.8"
+
+chrono = "0.4.9"
+include_dir = "0.2.1"
+getrandom = "0.1.13"
+#base64 = "0.11.0"
+
+cloud-auth-lib = {path="../cloud-auth-lib"}
+indexmap = "1.3.0"
+
+[features]
+default = []
+
+[profile.release]
+lto = true
+#panic = "abort"

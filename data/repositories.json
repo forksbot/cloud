@@ -1,0 +1,9 @@
+[
+  "core",
+  "addon-mqtt-mosquitto",
+  "addon-mqtt-homie",
+  "addon-webofthings",
+  "addon-hue-deconz",
+  "addon-hue-ioservice",
+  "addon-cloud-connector"
+]

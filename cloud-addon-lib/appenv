@@ -1,0 +1,5 @@
+export APP=cloud-addon-registry
+export DOMAIN=registry.openhabx.com
+export CRONURI=https://registry.openhabx.com/apply_ratings
+export CRONSERVICEACCOUNT=travisci-deployer@openhabx.iam.gserviceaccount.com
+export TARGET=x86_64-unknown-linux-musl

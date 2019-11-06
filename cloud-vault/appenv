@@ -1,0 +1,7 @@
+export APP=cloud-vault
+export DOMAIN=vault.openhabx.com
+export CRONURI=https://vault.openhabx.com/renew
+export CRONSERVICEACCOUNT=travisci-deployer@openhabx.iam.gserviceaccount.com
+export CRONEXPR="0 */5 * * *"
+export CRONMESSAGE="Renews CI keys every 5 hours"
+export TARGET=x86_64-unknown-linux-musl

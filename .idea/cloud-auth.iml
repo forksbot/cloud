@@ -2,10 +2,79 @@
 <module type="CPP_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-auth/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/examples" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-auth/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-auth/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-auth/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-auth-lib/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/lib-cloud-auth/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/lib-cloud-auth/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/lib-cloud-auth/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-auth-lib/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-auth-lib/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-auth-lib/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-vault/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-vault/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-vault/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-vault/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/create-secrets/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/create-secrets/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/create-secrets/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/create-secrets/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-addon-registry/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-addon-registry/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-addon-registry/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-addon-registry/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-subscriptions/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-subscriptions/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-subscriptions/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-subscriptions/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-addon-lib/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-addon-lib/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-addon-lib/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-addon-lib/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-connection-broker-lib/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-connection-broker-lib/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-connection-broker-lib/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-connection-broker-lib/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-connection-broker/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-connection-broker/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-connection-broker/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-connection-broker/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/amazon-alexa-ha/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/amazon-alexa-ha/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/amazon-alexa-ha/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/amazon-alexa-ha/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/lambda/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/lambda/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/lambda/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/lambda/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/lambda-attributes/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/lambda-attributes/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/lambda-attributes/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/lambda-attributes/benches" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/amazon-alexa-ha/target" />
+      <excludeFolder url="file://$MODULE_DIR$/cloud-addon-lib/target" />
+      <excludeFolder url="file://$MODULE_DIR$/cloud-addon-registry/target" />
+      <excludeFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/lambda-attributes/target" />
+      <excludeFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/lambda/target" />
+      <excludeFolder url="file://$MODULE_DIR$/cloud-amazon-alexa-skill/target" />
+      <excludeFolder url="file://$MODULE_DIR$/cloud-auth-lib/target" />
+      <excludeFolder url="file://$MODULE_DIR$/cloud-auth/target" />
+      <excludeFolder url="file://$MODULE_DIR$/cloud-connection-broker-lib/target" />
+      <excludeFolder url="file://$MODULE_DIR$/cloud-connection-broker/target" />
+      <excludeFolder url="file://$MODULE_DIR$/cloud-subscriptions/target" />
+      <excludeFolder url="file://$MODULE_DIR$/cloud-vault/target" />
+      <excludeFolder url="file://$MODULE_DIR$/create-secrets/target" />
+      <excludeFolder url="file://$MODULE_DIR$/lib-cloud-auth/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

@@ -1,5 +1,0 @@
-export APP=cloud-auth
-export DOMAIN=oauth.openhabx.com
-export CRONURI=https://oauth.openhabx.com/check_users
-export CRONSERVICEACCOUNT=travisci-deployer@openhabx.iam.gserviceaccount.com
-export TARGET=x86_64-unknown-linux-musl

@@ -1,0 +1,20 @@
+FROM rustlang/rust:nightly AS builder
+RUN mkdir /home/build && chown 1000:1000 /home/build
+WORKDIR /home/build
+
+ADD ./gitcookies /home/build/gitcookies
+RUN git config --global http.cookiefile /home/build/gitcookies && git clone https://source.developers.google.com/p/openhabx/r/vault secrets && rm -rf secrets/.git
+
+ADD ./appenv /home/build/
+ADD ./Cargo.* /home/build/
+ADD ./src /home/build/src
+
+RUN $(cat appenv) && \
+   cargo build --release && \
+   mv ./target/release/${APP} /home/build/app
+RUN strip ./app
+
+FROM scratch
+COPY --from=builder /home/build/app /ohx-app
+COPY --from=builder ./secrets /secrets
+ENTRYPOINT ["/ohx-app"]

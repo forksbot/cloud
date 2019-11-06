@@ -1,0 +1,27 @@
+[package]
+name = "cloud-auth"
+version = "0.0.0"
+publish = false
+edition = "2018"
+
+[dependencies]
+serde_json = "^1.0"
+serde_urlencoded = "0.6.1"
+serde = "^1.0"
+signal-hook = "^0.1"
+chrono = "0.4.9"
+
+# Error handling and logging
+failure = "^0.1"
+stackdriver_logger = "^0.5"
+log = "^0.4"
+
+# http
+rocket = { version="^0.4", default-features = false }
+rocket_contrib = { version="^0.4", default-features = false, features=["json"] }
+cloud-auth-lib = {path="../cloud-auth-lib"}
+biscuit = "^0.3"
+
+# databases
+firestore-db-and-auth = { version="^0.5", default-features = false, features=["rustls-tls","rocket_support"] }
+redis = "0.12.0"
